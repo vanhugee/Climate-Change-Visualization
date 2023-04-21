@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+
+
+    <style>
+        .body{
+            text-align: center;
+            margin-left: 100px;
+            margin-right: 100px;
+        }
+
+        .p{
+            font-size: 18px;
+            margin-top: 15px;
+        }
+
+    </style>
+    <body class = "body">
+        <h1>
+            Global Climate Vulnerability 1998 - 2017
+        </h1>
+        <p class = "p">
+            Increasing temperature is a global phenomenon. Although the effects are not uniform, reports have shown that more areas are warming than cooling.
+            Climate change and climate-related events pose significant dangers to human and other life forms on earth.
+            For this project, we investigated the degree of economic risk caused by climate-related extreme weather events that each countries face in the past 2 decades.
+            We used a dataset from Kaggle, which includes information on the risk index and economic losses of 183 countries from 1998 to 2017. 
+            Since extreme weather events and climate change are deeply intertwined, this investigation may also proves to be useful in determining
+            the countries and regions that are more vulnerable to climate change.
+        </p>
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+        <script>
+        var margin = {top: 20, right: 20, bottom: 120, left: 100},
+            width = 960 - margin.left - margin.right,
+            height = 600 - margin.top - margin.bottom;
+        var svg = d3.select("body").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .attr("class", "bar-chart")
+            .append("g") //group
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        data = d3.csv("finalClimate.csv").then(data => { //reading in the data
+            data.forEach(d => {
+            d.rank = +d.cri_rank;
+            d.fatality = +d.fatalities_per_100k_total;
+            d.country = d.country;
+            d.continent = d.Continent;
+            });
+
+            //Creating a dictionary from data with country as key
+            dataDict = {}
+            data.forEach(d => {
+                dataDict[d.country] = {
+                    country: d.country,
+                    continent: d.continent,
+                    cri_rank: d.cri_rank
+                }
+            })
+
+            
+            //Cant display all countries so choosing the desired ones
+            const desiredCountries = ["United States", "The Bahamas", "Mexico","Brazil", "Bolivia", "Argentina",
+                    "United Kingdom", "Germany", "Finland", "China", "Afghanistan", "India", "South Sudan",
+                "Tanzania", "Mozambique", "Australia", "New Zealand", "Solomon Islands"]
+
+            finalArray = [] //creating array with desired countries
+            for ((key) in dataDict){
+                if (desiredCountries.includes(key)){
+                    finalArray.push(dataDict[key])
+                }
+
+            }
+            //Converting to d3 values, and sorting by continent 
+            finalData = d3.values(finalArray);
+            finalData.sort((a,b) => {
+                return d3.ascending(a.continent, b.continent);
+                
+
+            });
+            //Ordinal Color Scale by continent
+            var ordinalColorScale = d3.scaleOrdinal()
+                .domain(["Africa", "Europe", "North America", "South America", "Asia", "Oceania"])
+                .range(["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#a65628","#f781bf","#999999"]);
+
+
+            
+
+            //axes
+            x = d3.scaleBand()
+                .rangeRound([0, width])
+                .padding(.1)
+                .domain(finalData.map(d => d.country));
+
+            y = d3.scaleLinear()
+                .rangeRound([height, 0])
+                .domain([0, d3.max(finalData, d => d.cri_rank)]);
+            
+
+            const entries = svg.selectAll("g") //group
+                .data(finalData) //bind the data
+                .enter() // every element in data will have a g at the end
+                .append("g")
+                    .append("rect")
+                        .attr("class", "bar")
+                        .attr("x", d => x(d.country))
+                        .attr("width", x.bandwidth)
+                        .attr("y", d => y(d.cri_rank))
+                        .attr("height",  d => height - y(d.cri_rank) )
+                        .style("fill", d => ordinalColorScale(d.continent));
+
+
+        
+ 
+            //X axis and flipping text names
+            svg.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x))
+                .selectAll("text")
+                .style("text-anchor", "end")
+                .attr("dx", "-.8em")
+                .attr("dy", "-.6em")
+                .attr("font-size", 15)
+                .attr("transform", "rotate(-60)");
+
+            svg.append("g")
+                .append("text")
+                .attr("transform", "translate(0," + height + ")")
+                .attr("y", 100)
+                .attr("x", 350)
+                .attr("dy", "0.71em")
+                .attr("fill", "#000")
+                .attr('font-size', 25)
+                .text("Countries");
+                
+
+            svg.append("g")
+                .call(d3.axisLeft(y))
+                .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -60)
+                    .attr("x", -190)
+                    .attr("dy", "0.71em")
+                    .attr("fill", "#000")
+                    .attr('font-size', 25)
+                    .text("Rank");
+
+                
+
+
+        }); 
+
+           
+        
+        </script>
+        <p class = "p">
+    When creating the graph, we grouped countries by continent to see if there is any relationship between continents and climate vulnerability.
+    Based on our visualization, there does not seem to be any trends among the continents but this is far from conclusive. The sample size is relatively small, which may not
+    represents any underlying correlations or causations. The fact that we hand-picked the countries may also be a source of bias. Still, there is some interesting
+    information from the graphs. With lower graphs means at more risk, the United States is surprisngly at a high risk of extreme climate-related events. In contrast, two
+    countries in Africa: South Sudan, and Tanzania, although with lower GDP, are relatively safe from extreme climate events.
+        </p>
+    </body>
+</html>

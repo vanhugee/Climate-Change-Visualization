@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<style>
+    .bodyStyle{
+        text-align: center;
+    }
+
+      /* Tooltip CSS */
+    .d3-tip {
+    line-height: 1.5;
+    font-weight: 400;
+    font-family:"avenir next", Arial, sans-serif;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #FFA500;
+    border-radius: 1px;
+    pointer-events: none;
+    }
+
+    /* Creates a small triangle extender for the tooltip */
+    .d3-tip:after {
+      box-sizing: border-box;
+      display: inline;
+      font-size: 8px;
+      width: 100%;
+      line-height: 1.5;
+      color: rgba(0, 0, 0, 0.6);
+      position: absolute;
+      pointer-events: none;
+
+    }
+
+    /* Northward tooltips */
+    .d3-tip.n:after {
+      content: "\25BC";
+      margin: -1px 0 0 0;
+      top: 100%;
+      left: 0;
+      text-align: center;
+    }
+
+    /* Eastward tooltips */
+    .d3-tip.e:after {
+      content: "\25C0";
+      margin: -4px 0 0 0;
+      top: 50%;
+      left: -8px;
+    }
+
+    /* Southward tooltips */
+    .d3-tip.s:after {
+      content: "\25B2";
+      margin: 0 0 1px 0;
+      top: -8px;
+      left: 0;
+      text-align: center;
+    }
+
+    /* Westward tooltips */
+    .d3-tip.w:after {
+      content: "\25B6";
+      margin: -4px 0 0 -1px;
+      top: 50%;
+      left: 100%;
+    }
+    .details{
+      color:white;
+    }
+</style>
+
+
+
+  <div class = "bodyStyle">
+    <h1>Climate Risk Data</h1>
+    <p>This is a paragraph</p>
+    <div id = "map"></div>
+    <div id = "legend"></div>
+  </div>
+  
+  
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://d3js.org/queue.v1.min.js"></script>
+  <script src="https://d3js.org/topojson.v1.min.js"></script>
+  <script src="https://d3js.org/d3-color.v1.min.js"></script>
+  <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <script src="https://unpkg.com/d3-simple-slider"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.6/d3-legend.js"></script>
+  <script src="d3-tip.js"></script>
+
+  <script >
+    var format = d3.format(".2%")
+    var tip = d3.tip()
+            .attr('class', 'd3-tip')
+            .offset([200, 0])
+            .html(function(d) {
+
+              if (d.cri_rank != undefined){
+                return "<strong>Country: </strong><span class='details'>" + 
+                d.properties.name + "<br></span>" + 
+                "CRI Rank: </strong><span class='details'>" +
+                d.cri_rank +"</span>"+ "<br></span>" + 
+                "CRI Score: </strong><span class='details'>" +
+                d.cri_score +"</span>"
+
+              }else{
+                return "<strong>Country: </strong><span class='details'>" + 
+                d.properties.name + "<br></span>" + 
+                "CRI Rank: </strong><span class='details'> Data Not Available </span>"+ "<br></span>" + 
+                "CRI Score: </strong><span class='details'> Data Not Available</span>"
+
+              }
+
+
+
+             
+            })
+    var margin = {top: 0, right: 0, bottom: 0, left: 0},
+            width = 960 - margin.left - margin.right,
+            height = 500 - margin.top - margin.bottom;
+
+    var colorPalette = ["#bd0026", "#f03b20", "#fd8d3c", "#feb24c", "#fed976", "#ffffb2" ]
+    var color = d3.scaleThreshold()
+        .domain([ 25, 50, 75, 100, 125])
+        .range(colorPalette)
+    var path = d3.geoPath();
+
+
+    var svg = d3.select("#map")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .style("background-color", '#9ecae1')
+            .append('g')
+            .attr('class', 'map');
+
+
+    svg.call(tip);
+
+    var projection = d3.geoMercator()
+            .scale(130)
+            .translate( [width / 2, height / 1.5]);
+
+    var path = d3.geoPath().projection(projection);
+
+    queue()
+        .defer(d3.json, "world.geo.json")
+        .defer(d3.csv, "data.csv")
+        .await(ready);
+
+
+    function ready(error, data, climate) {
+        var climateByCountry = {};
+
+        climate.forEach(d => {
+            console.log(d)
+            climateByCountry[d.Country] = {cri_rank: +d.CRIRank, cri_score: + d.CRIscore}
+
+
+        })
+
+
+    data.features.forEach(function(d) {
+        if(climateByCountry[d.properties.name]){
+            d.cri_rank = climateByCountry[d.properties.name].cri_rank
+            d.cri_score = climateByCountry[d.properties.name].cri_score
+            d.fatalities_per_100k_total = climateByCountry[d.properties.name].fatalities_per_100k_total
+        }
+    });
+
+
+    var countryShapes = svg.append("g")
+        .attr("class", "countries")
+        .selectAll("path")
+        .data(data.features)
+        .enter().append("path")
+        .attr("d", path)
+        .style("fill", d => {
+          if (d.cri_rank === undefined){
+            return "grey"
+          }   
+            return color(d.cri_rank);
+        })
+        .style('stroke', 'grey')
+        .style('stroke-width', .3)
+        .on('mouseover',function(d){
+          tip.show(d);
+          d3.select(this)
+            .style("stroke","#FFA500")
+            .style("stroke-width",2)
+            .raise();
+        })
+        .on('mouseout', function(d){
+          tip.hide(d);
+          d3.select(this)
+            .style("stroke","grey")
+            .style("stroke-width",0.3);
+        });
+
+
+
+    };
+
+    var legendRectSize = 18;
+    var legendSpacing = 4;
+    var svg2 = d3.select("#legend").append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform",
+              "translate(" + margin.left + "," + margin.top + ")");
+  
+    var legend = svg2.selectAll('.legend')
+        .data(color.domain())
+        .enter()
+        .append('g')
+        .attr('class', 'legend')
+        .attr('transform', function(d, i) {
+          return 'translate(' + (30*i + 425) + ',' + 20 + ')';
+        });
+
+    svg2.append('text')
+    .text("Legend")
+    .attr("x", 460)
+    .attr("y", 12)
+
+    svg2.append("text")
+        .text("N/A")
+        .attr("transform", "translate(399, 74)")
+        .attr("font-size", "12px")
+
+    svg2.append("rect")
+        .attr('width', 30)
+        .attr('height', 30)
+        .style('fill', "grey")
+        .style('stroke', "grey")
+        .attr("transform", "translate(397,20)")
+        
+
+    legend.append('rect')
+        .attr('width', 30)
+        .attr('height', 30)
+        .style('fill', color)
+        .style('stroke', color);
+        
+
+    legend.append('text')
+        .attr('x', 0+4)
+        .attr('y', 54 )
+        .attr("font-size", "12px")
+        .text(function(d) { 
+            if(d === 125 ){
+              return ">" + d;
+            }
+            return "<" + d; });
+
+        
+      function handleZoom(e){
+        svg
+          .attr('transform', e.transform)
+      }
+
+      let zoom = d3.zoom()
+        .on('zoom', handleZoom)
+      
+      svg.call(zoom)
+
+    
+
+
+    
+  </script>

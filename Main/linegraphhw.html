@@ -1,0 +1,263 @@
+
+<!--Andrew Denny Huy Nguyen
+Dr. Peck
+CSC 362
+Time Series Graph-->
+
+
+
+
+
+<body class = "align">
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+  
+    <style>
+      * {
+        font-family: sans-serif;
+      }
+      .axis--x path {
+        stroke: black;
+  
+      }
+  
+      .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+      }
+
+      .align{
+        text-align: center;
+        margin: 25;
+        background-color: linen;
+        
+      }
+      .paraStyle{
+           font-size: 20; 
+        }
+
+       .headerStyle{
+           margin-top: 50; 
+           font-size: 55
+        }
+    </style>
+
+    <h1 class = "headerStyle"> Wealth and Climate Change</h1>
+    <script>
+      var margin = {top: 20, right: 175, bottom: 80, left: 125},
+        width = 960 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+        var body = d3.selectAll("body")
+        body.append("p")
+            .attr("dy", "0em")
+            .classed("paraStyle", true)
+            .text("Question: Does the Wealth of the Country Affect the Amount of CO2 Emissions they produce?")
+        body
+            .append("text")
+                .attr("dy", "1.2em")
+                .classed("paraStyle", true)
+                .text(" A nation's CO2 emissions as defined by the World Bank are: \" Emissions stemming \
+                 from the burning of fossil fuels and the manufacture of cement.\" \
+                 These emissions are known to be the main factor that is driving global warming and thus climate change.  \
+                 As a result, we wanted to see if the nations that have more wealth are taking the necessary \
+                    steps to begin to reduce their carbon emissions.")
+
+
+        var svg = d3.select("body").append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .attr("class", "textStyle")
+          .append("g")
+          .attr("transform",
+              "translate(" + margin.left + "," + margin.top + ")");
+  
+    //Time Parse just need the Year
+    var parseTime = d3.timeParse("%Y");
+  
+    // Defining X, Y, and Color Z
+    var x = d3.scaleTime().range([0, width]),
+        y = d3.scaleLinear().range([height, 0]),
+        z = d3.scaleOrdinal(d3.schemeCategory10);
+  
+    //Defining the Line
+    var line = d3.line()
+      .x(d => x(d.date))
+      .y(d => y(d.emissions));
+  
+
+    //Reading in the Data
+    data = d3.csv("co2_emission.csv").then(data => {
+        data.forEach(d => {
+          d.date = parseTime(d.Year);
+          d.emissions = +d["Annual COE"];
+        });
+
+        //Filter Data to only include years after 1860
+        data = data.filter(val => val.date > parseTime(1860))
+  
+        //Nest Data
+        var countries = d3.nest()
+          .key(d => d.Entity)
+          .entries(data);
+
+    // Filter for Desired countries bc can't plot all 
+    desiredCountries = ["United States", "China", "Japan", "Germany", "United Kingdom", "India", "France", 
+  "India"]
+    bottom = []
+    bottomCountries = 
+    countries = countries.filter(val => desiredCountries.includes(val.key))
+
+
+
+      x.domain(d3.extent(data, d => d.date));
+      y.domain([0,d3.max(countries, c => d3.max(c.values, d => d.emissions))]);
+      z.domain(countries.map(c =>  c.key));
+
+    //X-axis
+      svg.append("g")
+          .attr("class", "axis axis--x")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x))
+          .append('text')
+            .attr("y", 35)
+            .attr("x", width/2)
+            .attr("dy", "0.71em")
+            .attr("fill", "#000")
+            .attr('font-size', 25)
+            .attr("class", "xAxisText")
+            .text("Years");
+
+    //Y-axis 
+    svg.append("g")
+        .attr("class", "axis axis--y")
+        .call(d3.axisLeft(y))
+        .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", -125)
+            .attr("x", -40)
+            .attr("dy", "0.71em")
+            .attr("fill", "#000")
+            .attr('font-size', 25)
+            .text("Tonnes of CO2 Emissions");
+
+    //Lines
+    var country = svg.selectAll(".country")
+        .data(countries)
+        .enter().append("g")
+        .attr("class", "country");
+
+    country.append("path")
+        .attr("class", "line")
+        .attr("d", d => line(d.values))
+        .style("stroke", d =>  z(d.key));
+
+    //Legend 
+    var legendBox = 120; //how wide the legend is 
+    var legend = svg.selectAll(".legend")
+      .data(countries)
+          .enter().append("g")
+          .attr("class", "legend")
+          .attr("transform", function(d, i){
+            return "translate(0," + i *20 + ")";
+          })
+          .on("mouseover", function(){ //mouse-over animation
+            d3.select(this).select("rect")
+            .style("stroke", d => z(d.key))
+            .style("stroke-width", 2)
+            .style("opacity", 0.5);
+          })
+          .on("mouseout", function(){ //mouse-off animation
+            d3.select(this).select("rect")
+            .style("stroke", "none")
+            .style("opacity", 1.0 )
+          })
+          .on("click", function(d){
+              country //reset all countries to normal
+                .style("stroke-opacity", 1)
+                .style("stroke-width", 100)
+              country.filter(e => e.key != d.key)
+                .style("stroke-opacity", 0.1)
+                .style("stroke-width", 1)
+
+          });
+      
+
+      const rect = svg.append("g")
+      .data(countries)
+      .on("mouseover", function(){ //mouse-over animation
+            d3.select(this).select("rect")
+            .style("stroke", "grey")
+            .style("stroke-width", 2)
+            .style("opacity", 0.5);
+      })
+      .on("mouseout", function(){ //mouse-off animation
+            d3.select(this).select("rect")
+            .style("stroke", "none")
+            .style("opacity", 1.0 )
+      })
+      .on("click", function(){
+              country //reset all countries to normal
+                .style("stroke-opacity", 1)
+                .style("stroke-width", 100)
+
+          });
+      ;
+      
+      
+
+      //Drawing the legend
+      legend.append("rect")
+          .attr("x", width + 20)
+          .attr("y", margin.top)
+          .attr("rx", 10)
+          .attr("width", legendBox)
+          .attr("height", 20)
+          .style("fill", d => z(d.key));
+
+      rect
+          .append("rect")
+          .attr("transform", "translate(0,140)")
+          .attr("x", width + 20)
+          .attr("y", margin.top)
+          .attr("rx", 10)
+          .attr("width", legendBox)
+          .attr("height", 20)
+          .attr("fill", "grey");
+          
+
+      legend.append("text")
+          .attr("x", width + 20 + legendBox/2)
+          .attr("y", margin.top + 9)
+          .attr("dy", ".35em")
+          .attr("text-anchor", "middle")
+          .style("pointer-events", "none")
+          .text(d => d.key);
+
+      rect.append("text")
+          .attr("x", width + 20 + legendBox/2)
+          .attr("y", 169)
+          .attr("dy", ".35em")
+          .attr("text-anchor", "middle")
+          .style("pointer-events", "none")
+          .text("Reset")
+
+
+
+        //Final Paragraph
+        body
+          .append("p")
+          .classed("paraStyle", true)
+          .text("We selected the Top 8 Nations according to their GNI per capita. From our line graph, we \
+          can see that the United States dwarfs the other 7 top wealthiest nations.  The United States' emissions\
+          in 2020 are nearly 6,000,000,000 tonnes, while none of the other 7 are above 500,000,000. \
+          However, we must acknowledge the fact that the United States population is much greater than the rest \
+          of the ccountries. This could definitely account for how wide the gap is. Additionally, \
+          we must account for the bias that we introuduced by only including the top 8 GNI per capita countries. \
+          With more time we could do a more detailed study.")
+
+    });
+  </script>
+
+
+  
